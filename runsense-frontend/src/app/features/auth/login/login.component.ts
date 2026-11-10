@@ -83,6 +83,21 @@ import { AuthService } from '../../../core/services/auth.service';
           ¿No tienes cuenta?
           <a routerLink="/auth/register" class="auth-link">Regístrate gratis</a>
         </div>
+
+        <div class="demo-card">
+          <div class="demo-card__title">
+            <span class="material-icons">science</span>
+            Cuenta de prueba
+          </div>
+          <div class="demo-card__creds">
+            <span><strong>Email:</strong> demo&#64;runsense.ai</span>
+            <span><strong>Clave:</strong> Demo1234!</span>
+          </div>
+          <button mat-stroked-button class="demo-card__btn" type="button" (click)="useDemo()">
+            <span class="material-icons">bolt</span>
+            Usar cuenta demo
+          </button>
+        </div>
       </div>
     </div>
   `,
@@ -170,6 +185,26 @@ import { AuthService } from '../../../core/services/auth.service';
     .auth-link { color: var(--rs-blue-300); text-decoration: none; font-weight: 600; margin-left: 4px;
       &:hover { color: var(--rs-blue-400); text-decoration: underline; }
     }
+
+    .demo-card {
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px dashed rgba(26,108,255,0.4);
+      border-radius: var(--rs-radius-sm);
+      background: rgba(26,108,255,0.06);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .demo-card__title {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 600; font-size: 0.875rem; color: var(--rs-text-primary);
+      .material-icons { font-size: 18px; color: var(--rs-blue-300); }
+    }
+    .demo-card__creds {
+      display: flex; flex-direction: column; gap: 2px;
+      font-size: 0.8rem; color: var(--rs-text-secondary);
+      code, strong { color: var(--rs-text-primary); }
+    }
+    .demo-card__btn { width: 100%; border-radius: 50px !important; }
   `],
 })
 export class LoginComponent {
@@ -187,6 +222,11 @@ export class LoginComponent {
   });
 
   togglePass(): void { this.showPass.set(!this.showPass()); }
+
+  useDemo(): void {
+    this.form.setValue({ email: 'demo@runsense.ai', password: 'Demo1234!' });
+    this.onSubmit();
+  }
 
   onSubmit(): void {
     if (this.form.invalid) return;
