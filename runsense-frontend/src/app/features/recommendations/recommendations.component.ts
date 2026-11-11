@@ -22,6 +22,35 @@ import { ApiService } from '../../core/services/api.service';
         </button>
       </div>
 
+      <div class="rs-card narrative-box">
+        <div class="narrative-box__head">
+          <span class="material-icons">psychology</span>
+          <h3>Análisis con IA (LLM)</h3>
+        </div>
+        <p class="narrative-box__desc">Genera un informe en lenguaje natural con tus datos reales: volumen, predicciones, anomalías y recuperación.</p>
+        <div class="narrative-kinds">
+          @for (k of kinds; track k.value) {
+            <button class="rs-btn rs-btn--sm" [class.rs-btn--primary]="narrKind()===k.value" [class.rs-btn--ghost]="narrKind()!==k.value" (click)="narrKind.set(k.value)">{{ k.label }}</button>
+          }
+          <button class="rs-btn rs-btn--primary rs-btn--sm" (click)="narrate()" [disabled]="narrating()">
+            @if (narrating()) { <mat-spinner diameter="16" /> }
+            @else { <span class="material-icons">bolt</span> Analizar }
+          </button>
+        </div>
+        @if (narrError()) {
+          <div class="rec-error"><span class="material-icons">warning</span>{{ narrError() }}</div>
+        }
+        @if (narrating()) {
+          <div class="center-spinner"><mat-spinner diameter="32"/></div>
+        }
+        @if (narrative()) {
+          <div class="narrative-result">
+            <div class="narrative-result__meta">Modelo {{ narrModel() }} · {{ narrTokens() }} tokens</div>
+            <div class="narrative-result__text">{{ narrative() }}</div>
+          </div>
+        }
+      </div>
+
       @if (errorMsg()) {
         <div class="rec-error"><span class="material-icons">warning</span>{{ errorMsg() }}</div>
       }
@@ -81,6 +110,13 @@ import { ApiService } from '../../core/services/api.service';
     .rec-explanation { font-size: 0.875rem; color: var(--rs-text-secondary); margin-bottom: 14px; line-height: 1.6; }
     .rec-data { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .empty-state { text-align: center; padding: 60px; .material-icons { font-size: 56px; color: var(--rs-blue-500); display: block; margin-bottom: 16px; opacity: 0.5; } h3 { margin-bottom: 8px; } p { color: var(--rs-text-secondary); margin-bottom: 20px; } }
+    .narrative-box { margin-bottom: 20px; }
+    .narrative-box__head { display: flex; align-items: center; gap: 8px; .material-icons { color: var(--rs-accent-purple); } h3 { margin: 0; font-size: 1.05rem; } }
+    .narrative-box__desc { font-size: 0.85rem; color: var(--rs-text-secondary); margin: 8px 0 12px; }
+    .narrative-kinds { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .narrative-result { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .narrative-result__meta { font-size: 0.72rem; color: var(--rs-text-muted); margin-bottom: 8px; }
+    .narrative-result__text { font-size: 0.875rem; line-height: 1.7; white-space: pre-wrap; color: var(--rs-text-primary); }
   `],
 })
 export class RecommendationsComponent implements OnInit {
@@ -89,6 +125,18 @@ export class RecommendationsComponent implements OnInit {
   generating = signal(false);
   errorMsg = signal('');
   recommendations = signal<any[]>([]);
+
+  kinds = [
+    { value: 'weekly_report', label: 'Semanal' },
+    { value: 'prediction_explainer', label: 'Predicciones' },
+    { value: 'recovery_brief', label: 'Recuperación' },
+  ];
+  narrKind = signal('weekly_report');
+  narrating = signal(false);
+  narrError = signal('');
+  narrative = signal('');
+  narrModel = signal('');
+  narrTokens = signal(0);
 
   ngOnInit() { this.load(); }
 
@@ -108,6 +156,25 @@ export class RecommendationsComponent implements OnInit {
 
   markRead(rec: any) {
     this.api.patch(`/recommendations/${rec.id}/read`, {}).subscribe(() => rec.is_read = true);
+  }
+
+  narrate() {
+    this.narrating.set(true);
+    this.narrError.set('');
+    this.narrative.set('');
+    this.api.post<any>('/recommendations/narrative', { kind: this.narrKind(), focus: '' }).subscribe({
+      next: (r) => {
+        if (r?.success && r.narrative_markdown) {
+          this.narrative.set(r.narrative_markdown);
+          this.narrModel.set(r.model || '');
+          this.narrTokens.set((r.prompt_tokens || 0) + (r.completion_tokens || 0));
+        } else {
+          this.narrError.set(r?.error || (r?.warnings || []).join(' ') || 'El LLM no devolvió análisis. Revisa GROQ_API_KEY en el servidor.');
+        }
+        this.narrating.set(false);
+      },
+      error: (e) => { this.narrError.set(e.error?.detail || 'Error al generar el análisis'); this.narrating.set(false); },
+    });
   }
 
   priorityLabel(p: string): string { return { high: '🔴 Alta', medium: '🟡 Media', low: '🟢 Baja' }[p] || p; }
